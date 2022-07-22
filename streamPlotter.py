@@ -48,7 +48,7 @@ def main(argv):
         print("Could not open file: " + fname)
         sys.exit(2)
 
-    if type == "mag":
+    if type == "atmo":
         time = []
         tempInDegC = []
         pressureInKPa = []
@@ -66,21 +66,32 @@ def main(argv):
             pressureInKPa.append(float(field[2]))
             relativeHumidity.append(float(field[3]))
 
+        print("temperature range: " + str(min(tempInDegC)) + " to " + str(max(tempInDegC)))
+        print("pressure range: " + str(min(pressureInKPa)) + " to " + str(max(pressureInKPa)))
+        print("relative humidity range: " + str(min(relativeHumidity)) + " to " + str(max(relativeHumidity)))
+        
         # Create a subplot for each sensor
         try:
+            # Create a figure with three subplots
             fig, axs = plt.subplots(3, 1)
+            # Name the figure
+            fig.suptitle("Atmospheric Data")
+            # Plot temperature in subplot 0
             axs[0].plot(time, tempInDegC, color="red")
             axs[0].set_title("Temperature (C)")
             axs[0].set_xlabel("Time (s)")
             axs[0].set_ylabel("°C")
+            # Plot pressure in subplot 1
             axs[1].plot(time, pressureInKPa, color="blue")
             axs[1].set_title("Pressure (KPa)")
             axs[1].set_xlabel("Time (s)")
             axs[1].set_ylabel("KPa")
+            # Plot relative humidity in subplot 2
             axs[2].plot(time, relativeHumidity, color="green")
             axs[2].set_title("Relative Humidity (%RH)")
             axs[2].set_xlabel("Time (s)")
             axs[2].set_ylabel("%RH")
+            # Show the plot
             plt.show()
         except:
             print("Could not create plot")
