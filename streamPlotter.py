@@ -4,6 +4,9 @@ from pickle import FALSE, TRUE
 import sys
 import getopt
 import matplotlib.pyplot as plt 
+# fit a straight line to the economic data
+from numpy import arange
+from scipy.optimize import curve_fit
 
 class streamData:
     time = []
@@ -27,11 +30,47 @@ class streamData:
         for i in range(len(self.time)):
             print(self.time[i], self.x[i], self.y[i], self.z[i])
 
+class humCurveFitting:
+    xLine = []
+    yLine = []
+    yPrime = []
+
+    def __init__(self):
+        self.xLine = []
+        self.yLine = []
+        self.yPrime = []
+
 def printArgHelp():
     print("streamPlotter.py USAGE:")
     print("--type=<mag, atmo>")
     print("--file=<path to file>")
     print("--process=<humidity_testing>")
+
+def linear(x, a, b):
+    return a * x + b
+
+def secondOrderPolynomial(x, a, b, c):
+	return a * x + b * x**2 + c
+
+def secondOrderPolynomialPrime(x, a, b):
+    return a + 2 * b * x
+
+def curveFitData(x, y):
+    # Curve fit to the polynomial x^2, get the coefficients
+    popt, _ = curve_fit(secondOrderPolynomial, x, y)
+    a, b, c = popt
+
+    # define a sequence of inputs between the smallest and largest known inputs
+    dx = x[1] - x[0]
+    x_line = arange(min(x), max(x), dx)
+
+    # calculate the output for the range
+    y_line = secondOrderPolynomial(x_line, a, b, c)
+
+    # calculate the derivative of the output for the range
+    y_prime = secondOrderPolynomialPrime(x_line, a, b)
+    
+    return x_line, y_line, y_prime
 
 def main(argv):
     ## Check the args
@@ -107,6 +146,7 @@ def main(argv):
         sys.exit(2)
 
     # Process data if we are doing a certain type of processing
+    humidityRate = []
     if process == "humidity_testing":
         # For humidity testing, we need to find when the temperature stabilizes
         # in the humidity chamber, this is relatively easy to find because the temperature
@@ -138,6 +178,13 @@ def main(argv):
 
             # Update the data field
             data[k] = processedData[k]
+
+            # Grab the rates now
+            humidityRate.append(humCurveFitting())
+            xfit, yfit, yprimefit = curveFitData(time, z)
+            humidityRate[k].xLine = xfit
+            humidityRate[k].yLine = yfit
+            humidityRate[k].yPrime = yprimefit
             k += 1
 
     # Make some plots
@@ -148,6 +195,7 @@ def main(argv):
         humList = []
         pnames = []
         colors = ["b","g","r","c","m","y","k"]
+        otherColors = ["r","y","o"]
         j = 0
         for i in data:
             timeList.append(i.time)
@@ -159,34 +207,55 @@ def main(argv):
             print("temperature range: " + str(min(tempList[j])) + " to " + str(max(tempList[j])))
             print("pressure range: " + str(min(pressList[j])) + " to " + str(max(pressList[j])))
             print("relative humidity range: " + str(min(humList[j])) + " to " + str(max(humList[j])))
+            if process == "humidity_testing":
+                print("humidity rate range: " + str(min(humidityRate[j].yPrime)) + " to " + str(max(humidityRate[j].yPrime)))
+
             j += 1
         # Create a subplot for each sensor
         try:
             # Create a figure with three subplots
-            fig, axs = plt.subplots(3, 1)
+            numSubPlots = 3
+            if process == "humidity_testing":
+                numSubPlots = 4
+
+            fig, axs = plt.subplots(numSubPlots, 1)
             # Name the figure
             fig.suptitle("Atmospheric Data")
             # Plot temperature in subplot 0
             for i in range(len(tempList)):
-                axs[0].plot(timeList[i], tempList[i], label=pnames[i], color=colors[i])
+                axs[0].scatter(timeList[i], tempList[i], label=pnames[i], color=colors[i])
             axs[0].set_title("Temperature (C)")
             axs[0].set_xlabel("Time (s)")
             axs[0].set_ylabel("°C")
             axs[0].legend()
             # Plot pressure in subplot 1
             for i in range(len(pressList)):
-                axs[1].plot(timeList[i], pressList[i], label=pnames[i], color=colors[i])
+                axs[1].scatter(timeList[i], pressList[i], label=pnames[i], color=colors[i])
             axs[1].set_title("Pressure (KPa)")
             axs[1].set_xlabel("Time (s)")
             axs[1].set_ylabel("KPa")
             axs[1].legend()
             # Plot relative humidity in subplot 2
             for i in range(len(humList)):
-                axs[2].plot(timeList[i], humList[i], label=pnames[i], color=colors[i])
+                axs[2].scatter(timeList[i], humList[i], label=pnames[i], color=colors[i])
+                if process == "humidity_testing":
+                    axs[2].plot(humidityRate[i].xLine, humidityRate[i].yLine, '--', color=otherColors[i])
             axs[2].set_title("Relative Humidity (%RH)")
             axs[2].set_xlabel("Time (s)")
             axs[2].set_ylabel("%RH")
             axs[2].legend()
+            # Plot rate of change of relative humidity in subplot 3
+
+            if numSubPlots == 4:
+                for i in range(len(humList)):
+                    axs[3].plot(humidityRate[i].xLine, humidityRate[i].yPrime, label=pnames[i], color=colors[i])
+                axs[3].set_title("%RH Rate of Change")
+                axs[3].set_xlabel("Time (s)")
+                axs[3].set_ylabel("Δ(%RH)")
+                axs[3].legend()
+
+            plt.subplots_adjust(left=None, bottom=None, right=None, top=None, wspace=None, hspace=.35)
+
             # Show the plot
             plt.show()
 
