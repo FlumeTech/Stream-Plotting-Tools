@@ -31,6 +31,7 @@ def printArgHelp():
     print("streamPlotter.py USAGE:")
     print("--type=<mag, atmo>")
     print("--file=<path to file>")
+    print("--process=<humidity_testing>")
 
 def main(argv):
     ## Check the args
@@ -39,14 +40,14 @@ def main(argv):
         sys.exit(2)
 
     try:
-        opts, args = getopt.getopt(argv, "-h",["type=","file="])
+        opts, _ = getopt.getopt(argv, "-h",["type=","file=","process="])
     except getopt.GetoptError:
         printArgHelp()
         sys.exit(2)
 
     # Parse the args
     type = "mag"
-    compare = False
+    process = "none"
     for opt, arg in opts:
         if opt == '-h':
             printArgHelp()
@@ -57,10 +58,10 @@ def main(argv):
             # If we have multiple files, we need to compare them
             files = []
             f = arg.split(",")
-            if len(f) > 1:
-                compare = True
             for i in f:
                 files.append(i)
+        elif opt == "--process":
+            process = arg
 
     # Screen the types
     if type != "mag" and type != "atmo":
@@ -98,12 +99,46 @@ def main(argv):
                 
 
                 # Set the record
-                data[k].setRecord(float(field[0]), float(field[1]), float(field[2]), float(field[3]))
+                data[k].setRecord(float(field[0]) / 1000.0, float(field[1]), float(field[2]), float(field[3]))
             
             k += 1
     except:
         print("Error reading file: " + i)
         sys.exit(2)
+
+    # Process data if we are doing a certain type of processing
+    if process == "humidity_testing":
+        # For humidity testing, we need to find when the temperature stabilizes
+        # in the humidity chamber, this is relatively easy to find because the temperature
+        # bottoms out when it stabilizes.
+
+        processedData = []
+        k = 0
+        for i in data:
+            processedData.append(streamData())
+
+            # Find the temperature bottoms out
+            temp = i.x[0]
+            low = temp
+            lowIndex = 0
+            for j in range(len(i.x)):
+                if i.x[j] < low:
+                    low = i.x[j]
+                    lowIndex = j
+            
+            # Cut the data from where the temperature bottoms out
+            time = i.time[lowIndex:]
+            x = i.x[lowIndex:]
+            y = i.y[lowIndex:]
+            z = i.z[lowIndex:]
+            processedData[k].time = time
+            processedData[k].x = x
+            processedData[k].y = y
+            processedData[k].z = z
+
+            # Update the data field
+            data[k] = processedData[k]
+            k += 1
 
     # Make some plots
     if type == "atmo":
@@ -154,6 +189,7 @@ def main(argv):
             axs[2].legend()
             # Show the plot
             plt.show()
+
         except:
             print("Could not create plot")
             sys.exit(2)
