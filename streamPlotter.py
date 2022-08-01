@@ -44,7 +44,8 @@ def printArgHelp():
     print("streamPlotter.py USAGE:")
     print("--type=<mag, atmo>")
     print("--file=<path to file>")
-    print("--process=<humidity_testing>")
+    print("--process=<humidity_testing - find the point in the splot where the temprature bottoms out and start the run from that point.>")
+    print("--labels=<labels for various plots if you don't want the default label>")
 
 def linear(x, a, b):
     return a * x + b
