@@ -79,7 +79,7 @@ def main(argv):
         sys.exit(2)
 
     try:
-        opts, _ = getopt.getopt(argv, "-h",["type=","file=","process="])
+        opts, _ = getopt.getopt(argv, "-h",["type=","file=","process=", "labels="])
     except getopt.GetoptError:
         printArgHelp()
         sys.exit(2)
@@ -87,6 +87,7 @@ def main(argv):
     # Parse the args
     type = "mag"
     process = "none"
+    labels = []
     for opt, arg in opts:
         if opt == '-h':
             printArgHelp()
@@ -101,6 +102,10 @@ def main(argv):
                 files.append(i)
         elif opt == "--process":
             process = arg
+        elif opt == "--labels":
+            f = arg.split(",")
+            for i in f:
+                labels.append(i)
 
     # Screen the types
     if type != "mag" and type != "atmo":
@@ -152,6 +157,8 @@ def main(argv):
         # in the humidity chamber, this is relatively easy to find because the temperature
         # bottoms out when it stabilizes.
 
+        print("processing humidity_testing")
+
         processedData = []
         k = 0
         for i in data:
@@ -195,14 +202,17 @@ def main(argv):
         humList = []
         pnames = []
         colors = ["b","g","r","c","m","y","k"]
-        otherColors = ["r","y","o"]
+        otherColors = ["r","y","b","g","c","m"]
         j = 0
         for i in data:
             timeList.append(i.time)
             tempList.append(i.x)
             pressList.append(i.y)
             humList.append(i.z)
-            pnames.append("Atmo " + str(j))
+            if len(labels) > 0:
+                pnames.append(labels[j])
+            else:
+                pnames.append("Atmo " + str(j))
 
             print("temperature range: " + str(min(tempList[j])) + " to " + str(max(tempList[j])))
             print("pressure range: " + str(min(pressList[j])) + " to " + str(max(pressList[j])))
@@ -259,7 +269,8 @@ def main(argv):
             # Show the plot
             plt.show()
 
-        except:
+        except Exception as e: 
+            print(e)
             print("Could not create plot")
             sys.exit(2)
     elif type == "mag":
