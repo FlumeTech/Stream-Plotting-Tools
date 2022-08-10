@@ -167,13 +167,19 @@ def main(argv):
 
             # Find the temperature bottoms out
             temp = i.x[0]
+            time = i.time[0]
             low = temp
             lowIndex = 0
+            startTime = time
             for j in range(len(i.x)):
-                if i.x[j] < low:
+                if i.x[j] == low:
+                    delta = i.time[j] - startTime
+                    if delta > 3000:
+                        lowIndex = j
+                        break
+                elif i.x[j] < low:
+                    startTime = i.time[j]
                     low = i.x[j]
-                    lowIndex = j
-            
             # Cut the data from where the temperature bottoms out
             time = i.time[lowIndex:]
             x = i.x[lowIndex:]
