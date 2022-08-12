@@ -4,6 +4,7 @@ from pickle import FALSE, TRUE
 import sys
 import getopt
 import matplotlib.pyplot as plt 
+from statistics import mean
 # fit a straight line to the economic data
 from numpy import arange
 from scipy.optimize import curve_fit
@@ -45,10 +46,14 @@ def printArgHelp():
     print("--type=<mag, atmo>")
     print("--file=<path to file>")
     print("--process=<humidity_testing - find the point in the splot where the temprature bottoms out and start the run from that point.>")
+    print("--fit=<linear, secondOrderPolynomial>")
     print("--labels=<labels for various plots if you don't want the default label>")
 
 def linear(x, a, b):
     return a * x + b
+
+def linearPrime(x, a):
+    return (x / x) * a
 
 def secondOrderPolynomial(x, a, b, c):
 	return a * x + b * x**2 + c
@@ -56,22 +61,40 @@ def secondOrderPolynomial(x, a, b, c):
 def secondOrderPolynomialPrime(x, a, b):
     return a + 2 * b * x
 
-def curveFitData(x, y):
-    # Curve fit to the polynomial x^2, get the coefficients
-    popt, _ = curve_fit(secondOrderPolynomial, x, y)
-    a, b, c = popt
+def curveFitData(x, y, fit):
+    if fit == "linear":
+        popt, _ = curve_fit(linear, x, y)
+        a, b = popt
 
-    # define a sequence of inputs between the smallest and largest known inputs
-    dx = x[1] - x[0]
-    x_line = arange(min(x), max(x), dx)
+        # define a sequence of inputs between the smallest and largest known inputs
+        dx = x[1] - x[0]
+        x_line = arange(min(x), max(x), dx)
 
-    # calculate the output for the range
-    y_line = secondOrderPolynomial(x_line, a, b, c)
+        # calculate the output for the range
+        y_line = linear(x_line, a, b)
 
-    # calculate the derivative of the output for the range
-    y_prime = secondOrderPolynomialPrime(x_line, a, b)
-    
-    return x_line, y_line, y_prime
+        # calculate the derivative of the output for the range
+        y_prime = linearPrime(x_line, a)
+        
+        return x_line, y_line, y_prime
+    elif fit == "secondOrderPolynomial":
+        # Curve fit to the polynomial x^2, get the coefficients
+        popt, _ = curve_fit(secondOrderPolynomial, x, y)
+        a, b, c = popt
+
+        # define a sequence of inputs between the smallest and largest known inputs
+        dx = x[1] - x[0]
+        x_line = arange(min(x), max(x), dx)
+
+        # calculate the output for the range
+        y_line = secondOrderPolynomial(x_line, a, b, c)
+
+        # calculate the derivative of the output for the range
+        y_prime = secondOrderPolynomialPrime(x_line, a, b)
+        
+        return x_line, y_line, y_prime
+    else:
+        return [], [], []
 
 def main(argv):
     ## Check the args
@@ -88,6 +111,7 @@ def main(argv):
     # Parse the args
     type = "mag"
     process = "none"
+    fit = "linear"
     labels = []
     for opt, arg in opts:
         if opt == '-h':
@@ -107,6 +131,8 @@ def main(argv):
             f = arg.split(",")
             for i in f:
                 labels.append(i)
+        elif opt =="--fit":
+            fit = arg
 
     # Screen the types
     if type != "mag" and type != "atmo":
@@ -142,7 +168,6 @@ def main(argv):
                 if len(field) < 4:
                     continue
                 
-
                 # Set the record
                 data[k].setRecord(float(field[0]) / 1000.0, float(field[1]), float(field[2]), float(field[3]))
             
@@ -180,6 +205,7 @@ def main(argv):
                 elif i.x[j] < low:
                     startTime = i.time[j]
                     low = i.x[j]
+
             # Cut the data from where the temperature bottoms out
             time = i.time[lowIndex:]
             x = i.x[lowIndex:]
@@ -195,10 +221,32 @@ def main(argv):
 
             # Grab the rates now
             humidityRate.append(humCurveFitting())
-            xfit, yfit, yprimefit = curveFitData(time, z)
-            humidityRate[k].xLine = xfit
-            humidityRate[k].yLine = yfit
-            humidityRate[k].yPrime = yprimefit
+            linear_xfit, linaer_yfit, linaear_yprimefit = curveFitData(time, z, "linear")
+            second_xfit, second_yfit, second_yprimefit = curveFitData(time, z, "secondOrderPolynomial")
+            
+            linear_check = 0
+            second_check = 0
+            r = []
+            r.append(len(z))
+            r.append(len(linear_xfit))
+            r.append(len(second_xfit))
+            rn = min(r)
+            for i in range(rn):
+                linear_check = linear_check + abs(z[i] - linaer_yfit[i])
+                second_check = second_check + abs(z[i] - second_yfit[i])
+
+            margin = 100
+            print("linear_check: " + str(abs(linear_check)))
+            print("second_check + margin: " + str(abs(second_check) + margin))
+            if abs(linear_check) < ( abs(second_check) + margin):
+                humidityRate[k].xLine = linear_xfit
+                humidityRate[k].yLine = linaer_yfit
+                humidityRate[k].yPrime = linaear_yprimefit
+            else:
+                humidityRate[k].xLine = second_xfit
+                humidityRate[k].yLine = second_yfit
+                humidityRate[k].yPrime = second_yprimefit
+
             k += 1
 
     # Make some plots
@@ -209,7 +257,7 @@ def main(argv):
         humList = []
         pnames = []
         colors = ["b","g","r","c","m","y","k"]
-        otherColors = ["r","y","b","g","c","m"]
+        otherColors = ["k","b","g","r","c","m","y"]
         j = 0
         for i in data:
             timeList.append(i.time)
@@ -226,6 +274,7 @@ def main(argv):
             print("relative humidity range: " + str(min(humList[j])) + " to " + str(max(humList[j])))
             if process == "humidity_testing":
                 print("humidity rate range: " + str(min(humidityRate[j].yPrime)) + " to " + str(max(humidityRate[j].yPrime)))
+                print("avg humidity rage change: " + str(mean(humidityRate[j].yPrime)))
 
             j += 1
         # Create a subplot for each sensor
@@ -302,8 +351,6 @@ def main(argv):
         except:
             print("Could not create plot")
             sys.exit(2)
-
-            
 
 if __name__ == "__main__":
     main(sys.argv[1:])
