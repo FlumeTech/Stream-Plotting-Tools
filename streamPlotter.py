@@ -5,6 +5,7 @@ import sys
 import getopt
 import matplotlib.pyplot as plt 
 from statistics import mean
+from tabulate import tabulate
 # fit a straight line to the economic data
 from numpy import arange
 from scipy.optimize import curve_fit
@@ -178,6 +179,7 @@ def main(argv):
 
     # Process data if we are doing a certain type of processing
     humidityRate = []
+    fit = []
     if process == "humidity_testing":
         # For humidity testing, we need to find when the temperature stabilizes
         # in the humidity chamber, this is relatively easy to find because the temperature
@@ -242,10 +244,12 @@ def main(argv):
                 humidityRate[k].xLine = linear_xfit
                 humidityRate[k].yLine = linaer_yfit
                 humidityRate[k].yPrime = linaear_yprimefit
+                fit.append("linear")
             else:
                 humidityRate[k].xLine = second_xfit
                 humidityRate[k].yLine = second_yfit
                 humidityRate[k].yPrime = second_yprimefit
+                fit.append("2nd order polynomial")
 
             k += 1
 
@@ -269,12 +273,28 @@ def main(argv):
             else:
                 pnames.append("Atmo " + str(j))
 
-            print("temperature range: " + str(min(tempList[j])) + " to " + str(max(tempList[j])))
-            print("pressure range: " + str(min(pressList[j])) + " to " + str(max(pressList[j])))
-            print("relative humidity range: " + str(min(humList[j])) + " to " + str(max(humList[j])))
+            # Print a nice table
+            minTemp = min(tempList[j])
+            maxTemp = max(tempList[j])
+            avgTemp = mean(tempList[j])
+            minPress = min(pressList[j])
+            maxPress = max(pressList[j])
+            avgPress = mean(pressList[j])
+            minHum = min(humList[j])
+            maxHum = max(humList[j])
+            avgHum = mean(humList[j])
             if process == "humidity_testing":
-                print("humidity rate range: " + str(min(humidityRate[j].yPrime)) + " to " + str(max(humidityRate[j].yPrime)))
-                print("avg humidity rage change: " + str(mean(humidityRate[j].yPrime)))
+                minHumRate = min(humidityRate[j].yPrime)
+                maxHumRate = max(humidityRate[j].yPrime)
+                avgHumRate = mean(humidityRate[j].yPrime)
+            
+            data = [["temperature degrees C", minTemp, maxTemp, avgTemp, "--"], 
+            ["pressure kPa", minPress, maxPress, avgPress, "--"], 
+            ["relative humidity", minHum, maxHum, avgHum, "--"]]
+            if process == "humidity_testing":
+                data.append(["humidity rate", minHumRate, maxHumRate, avgHumRate, fit[j]])
+            print (tabulate(data, headers=["metric", "min", "max", "avg", "fit"], tablefmt="pipe"))
+            print("\n")
 
             j += 1
         # Create a subplot for each sensor
@@ -305,7 +325,7 @@ def main(argv):
             for i in range(len(humList)):
                 axs[2].scatter(timeList[i], humList[i], label=pnames[i], color=colors[i])
                 if process == "humidity_testing":
-                    axs[2].plot(humidityRate[i].xLine, humidityRate[i].yLine, '--', color=otherColors[i])
+                    axs[2].plot(humidityRate[i].xLine, humidityRate[i].yLine, '--', label=(pnames[i] + " curve fit"), color=colors[i])
             axs[2].set_title("Relative Humidity (%RH)")
             axs[2].set_xlabel("Time (s)")
             axs[2].set_ylabel("%RH")
@@ -315,6 +335,9 @@ def main(argv):
             if numSubPlots == 4:
                 for i in range(len(humList)):
                     axs[3].plot(humidityRate[i].xLine, humidityRate[i].yPrime, label=pnames[i], color=colors[i])
+                    if fit[i] == "2nd order polynomial":
+                        aR = linearPrime(humidityRate[i].xLine, avgHumRate)
+                        axs[3].plot(humidityRate[i].xLine, aR, '--', label=(pnames[i] + " avg"), color=colors[i])
                 axs[3].set_title("%RH Rate of Change")
                 axs[3].set_xlabel("Time (s)")
                 axs[3].set_ylabel("Δ(%RH)")
