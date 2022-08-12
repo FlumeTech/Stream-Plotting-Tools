@@ -44,10 +44,9 @@ class humCurveFitting:
 
 def printArgHelp():
     print("streamPlotter.py USAGE:")
-    print("--type=<mag, atmo>")
+    print("--type=<mag, atmo, rh_comp>")
     print("--file=<path to file>")
     print("--process=<humidity_testing - find the point in the splot where the temprature bottoms out and start the run from that point.>")
-    print("--fit=<linear, secondOrderPolynomial>")
     print("--labels=<labels for various plots if you don't want the default label>")
 
 def linear(x, a, b):
@@ -97,6 +96,10 @@ def curveFitData(x, y, fit):
     else:
         return [], [], []
 
+def helper_func(ele):
+        name, val = ele.split()
+        return val
+
 def main(argv):
     ## Check the args
     if len(argv) < 1:
@@ -112,7 +115,6 @@ def main(argv):
     # Parse the args
     type = "mag"
     process = "none"
-    fit = "linear"
     labels = []
     for opt, arg in opts:
         if opt == '-h':
@@ -132,11 +134,9 @@ def main(argv):
             f = arg.split(",")
             for i in f:
                 labels.append(i)
-        elif opt =="--fit":
-            fit = arg
 
     # Screen the types
-    if type != "mag" and type != "atmo":
+    if type != "mag" and type != "atmo" and type != "rh_comp":
         print("Invalid type: " + type)
         sys.exit(2)
     
@@ -226,6 +226,7 @@ def main(argv):
             linear_xfit, linaer_yfit, linaear_yprimefit = curveFitData(time, z, "linear")
             second_xfit, second_yfit, second_yprimefit = curveFitData(time, z, "secondOrderPolynomial")
             
+            # Optimize the rate fit to the most accurate fit
             linear_check = 0
             second_check = 0
             r = []
@@ -260,8 +261,8 @@ def main(argv):
         pressList = []
         humList = []
         pnames = []
-        colors = ["b","g","r","c","m","y","k"]
-        otherColors = ["k","b","g","r","c","m","y"]
+        colors = ["b","g","r","c","m","y","k","o","p"]
+        avgRateChangeHum = []
         j = 0
         for i in data:
             timeList.append(i.time)
@@ -293,6 +294,7 @@ def main(argv):
             ["relative humidity", minHum, maxHum, avgHum, "--"]]
             if process == "humidity_testing":
                 data.append(["humidity rate", minHumRate, maxHumRate, avgHumRate, fit[j]])
+                avgRateChangeHum.append(avgHumRate)
             print (tabulate(data, headers=["metric", "min", "max", "avg", "fit"], tablefmt="pipe"))
             print("\n")
 
@@ -336,7 +338,7 @@ def main(argv):
                 for i in range(len(humList)):
                     axs[3].plot(humidityRate[i].xLine, humidityRate[i].yPrime, label=pnames[i], color=colors[i])
                     if fit[i] == "2nd order polynomial":
-                        aR = linearPrime(humidityRate[i].xLine, avgHumRate)
+                        aR = linearPrime(humidityRate[i].xLine, avgRateChangeHum[i])
                         axs[3].plot(humidityRate[i].xLine, aR, '--', label=(pnames[i] + " avg"), color=colors[i])
                 axs[3].set_title("%RH Rate of Change")
                 axs[3].set_xlabel("Time (s)")
@@ -374,6 +376,97 @@ def main(argv):
         except:
             print("Could not create plot")
             sys.exit(2)
+    elif type == "rh_comp":
+        timeList = []
+        tempList = []
+        pressList = []
+        humList = []
+        pnames = []
+        colors = ["b","g","r","c","m","y","k", "#ccccff", "#ff33cc" ]
+        avgRateChangeHum = []
+        comparison = []
+        j = 0
+        for i in data:
+            timeList.append(i.time)
+            tempList.append(i.x)
+            pressList.append(i.y)
+            humList.append(i.z)
+            if len(labels) > 0:
+                pnames.append(labels[j])
+            else:
+                pnames.append("Atmo " + str(j))
+
+            # Print a nice table
+            minTemp = min(tempList[j])
+            maxTemp = max(tempList[j])
+            avgTemp = mean(tempList[j])
+            minPress = min(pressList[j])
+            maxPress = max(pressList[j])
+            avgPress = mean(pressList[j])
+            minHum = min(humList[j])
+            maxHum = max(humList[j])
+            avgHum = mean(humList[j])
+            if process == "humidity_testing":
+                minHumRate = round(min(humidityRate[j].yPrime), 7)
+                maxHumRate = round(max(humidityRate[j].yPrime), 7)
+                avgHumRate = round(mean(humidityRate[j].yPrime), 7)
+            
+            data = [["temperature degrees C", minTemp, maxTemp, avgTemp, "--"], 
+            ["pressure kPa", minPress, maxPress, avgPress, "--"], 
+            ["relative humidity", minHum, maxHum, avgHum, "--"]]
+            if process == "humidity_testing":
+                data.append(["humidity rate", minHumRate, maxHumRate, avgHumRate, fit[j]])
+                avgRateChangeHum.append(avgHumRate)
+                comparison.append(labels[j] + " " + f'{avgHumRate:.20f}')
+            print (tabulate(data, headers=["metric", "min", "max", "avg", "fit"], tablefmt="pipe"))
+            print("\n")
+
+            j += 1
+
+        # Create a figure with three subplots
+        numSubPlots = 1
+        if process == "humidity_testing":
+            numSubPlots = 2
+
+        fig, axs = plt.subplots(numSubPlots, 1)
+        # Plot relative humidity in subplot 2
+        for i in range(len(humList)):
+            axs[0].scatter(timeList[i], humList[i], label=pnames[i], color=colors[i])
+            if process == "humidity_testing":
+                axs[0].plot(humidityRate[i].xLine, humidityRate[i].yLine, '--', label=(pnames[i] + " curve fit"), color=colors[i])
+        axs[0].set_title("Relative Humidity (%RH)")
+        axs[0].set_xlabel("Time (s)")
+        axs[0].set_ylabel("%RH")
+        axs[0].legend()
+        # Plot rate of change of relative humidity in subplot 3
+
+        if numSubPlots == 2:
+            for i in range(len(humList)):
+                if fit[i] == "linear":
+                    axs[1].plot(humidityRate[i].xLine, humidityRate[i].yPrime, label=pnames[i], color=colors[i])
+                if fit[i] == "2nd order polynomial":
+                    aR = linearPrime(humidityRate[i].xLine, avgRateChangeHum[i])
+                    axs[1].plot(humidityRate[i].xLine, aR, '--', label=(pnames[i] + " avg"), color=colors[i])
+            axs[1].set_title("%RH Rate of Change")
+            axs[1].set_xlabel("Time (s)")
+            axs[1].set_ylabel("Δ(%RH)")
+            axs[1].legend()
+
+        # Create a table of rankings
+        comparison.sort(key = helper_func)
+        compData = []
+        pp = 0
+        for i in comparison:
+            pp += 1
+            bp = i.split()
+            bp.append(str(pp))
+            compData.append(bp)
+        print (tabulate(compData, headers=["seal", "rate", "rank"], tablefmt="pipe"))
+
+        plt.subplots_adjust(left=None, bottom=None, right=None, top=None, wspace=None, hspace=.35)
+
+        # Show the plot
+        plt.show()
 
 if __name__ == "__main__":
     main(sys.argv[1:])
