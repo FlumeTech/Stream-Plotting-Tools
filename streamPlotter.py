@@ -382,7 +382,7 @@ def main(argv):
         pressList = []
         humList = []
         pnames = []
-        colors = ["b","g","r","c","m","y","k", "#ccccff", "#ff33cc" ]
+        colors = ["b","g","r","c","m","y","k","#ccccff","#ff33cc","#336699","#888844"]
         avgRateChangeHum = []
         comparison = []
         j = 0
