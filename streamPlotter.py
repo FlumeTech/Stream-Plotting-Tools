@@ -142,6 +142,7 @@ def main(argv):
     
     # Create a list of streamData objects
     data = []
+    colors = ["b","g","r","c","m","y","k","#ccccff","#ff33cc","#336699","#888844","#cc6600","#000066"]
 
     # Populate the list of streamData objects
     maxLines = 5000000
@@ -261,7 +262,6 @@ def main(argv):
         pressList = []
         humList = []
         pnames = []
-        colors = ["b","g","r","c","m","y","k","o","p"]
         avgRateChangeHum = []
         j = 0
         for i in data:
@@ -382,7 +382,6 @@ def main(argv):
         pressList = []
         humList = []
         pnames = []
-        colors = ["b","g","r","c","m","y","k","#ccccff","#ff33cc","#336699","#888844"]
         avgRateChangeHum = []
         comparison = []
         j = 0
