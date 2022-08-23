@@ -9,28 +9,11 @@ from tabulate import tabulate
 # fit a straight line to the economic data
 from numpy import arange
 from scipy.optimize import curve_fit
+import numpy as np
 
-class streamData:
-    time = []
-    x = []
-    y = []
-    z = []
-
-    def __init__(self):
-        self.time = []
-        self.x = []
-        self.y = []
-        self.z = []
-
-    def setRecord(self, time, x, y, z):
-        self.time.append(time)
-        self.x.append(x)
-        self.y.append(y)
-        self.z.append(z)
-
-    def printRawData(self):
-        for i in range(len(self.time)):
-            print(self.time[i], self.x[i], self.y[i], self.z[i])
+import streamData as sd
+import humidityTesting as ht
+import presenter as pr
 
 class humCurveFitting:
     xLine = []
@@ -48,53 +31,6 @@ def printArgHelp():
     print("--file=<path to file>")
     print("--process=<humidity_testing - find the point in the splot where the temprature bottoms out and start the run from that point.>")
     print("--labels=<labels for various plots if you don't want the default label>")
-
-def linear(x, a, b):
-    return a * x + b
-
-def linearPrime(x, a):
-    return (x / x) * a
-
-def secondOrderPolynomial(x, a, b, c):
-	return a * x + b * x**2 + c
-
-def secondOrderPolynomialPrime(x, a, b):
-    return a + 2 * b * x
-
-def curveFitData(x, y, fit):
-    if fit == "linear":
-        popt, _ = curve_fit(linear, x, y)
-        a, b = popt
-
-        # define a sequence of inputs between the smallest and largest known inputs
-        dx = x[1] - x[0]
-        x_line = arange(min(x), max(x), dx)
-
-        # calculate the output for the range
-        y_line = linear(x_line, a, b)
-
-        # calculate the derivative of the output for the range
-        y_prime = linearPrime(x_line, a)
-        
-        return x_line, y_line, y_prime
-    elif fit == "secondOrderPolynomial":
-        # Curve fit to the polynomial x^2, get the coefficients
-        popt, _ = curve_fit(secondOrderPolynomial, x, y)
-        a, b, c = popt
-
-        # define a sequence of inputs between the smallest and largest known inputs
-        dx = x[1] - x[0]
-        x_line = arange(min(x), max(x), dx)
-
-        # calculate the output for the range
-        y_line = secondOrderPolynomial(x_line, a, b, c)
-
-        # calculate the derivative of the output for the range
-        y_prime = secondOrderPolynomialPrime(x_line, a, b)
-        
-        return x_line, y_line, y_prime
-    else:
-        return [], [], []
 
 def helper_func(ele):
         name, val = ele.split()
@@ -155,7 +91,7 @@ def main(argv):
             f.close()
 
             # Make a streamData object
-            data.append(streamData())
+            data.append(sd.streamData())
 
             # Split the buffer into lines
             j = 0
@@ -179,81 +115,18 @@ def main(argv):
         sys.exit(2)
 
     # Process data if we are doing a certain type of processing
-    humidityRate = []
-    fit = []
-    if process == "humidity_testing":
-        # For humidity testing, we need to find when the temperature stabilizes
-        # in the humidity chamber, this is relatively easy to find because the temperature
-        # bottoms out when it stabilizes.
-
-        print("processing humidity_testing")
-
+    if process == "humidity_testing" and type == "atmo":
+        # Loop through the data, clip it, and fit it
         processedData = []
-        k = 0
+        fitData = []
         for i in data:
-            processedData.append(streamData())
+            # Clip and fit the data
+            clip, hum = ht.fixedTempAndHumidityProcess(i)
+            processedData.append(clip)
+            fitData.append(hum)
 
-            # Find the temperature bottoms out
-            temp = i.x[0]
-            time = i.time[0]
-            low = temp
-            lowIndex = 0
-            startTime = time
-            for j in range(len(i.x)):
-                if i.x[j] == low:
-                    delta = i.time[j] - startTime
-                    if delta > 3000:
-                        lowIndex = j
-                        break
-                elif i.x[j] < low:
-                    startTime = i.time[j]
-                    low = i.x[j]
-
-            # Cut the data from where the temperature bottoms out
-            time = i.time[lowIndex:]
-            x = i.x[lowIndex:]
-            y = i.y[lowIndex:]
-            z = i.z[lowIndex:]
-            processedData[k].time = time
-            processedData[k].x = x
-            processedData[k].y = y
-            processedData[k].z = z
-
-            # Update the data field
-            data[k] = processedData[k]
-
-            # Grab the rates now
-            humidityRate.append(humCurveFitting())
-            linear_xfit, linaer_yfit, linaear_yprimefit = curveFitData(time, z, "linear")
-            second_xfit, second_yfit, second_yprimefit = curveFitData(time, z, "secondOrderPolynomial")
-            
-            # Optimize the rate fit to the most accurate fit
-            linear_check = 0
-            second_check = 0
-            r = []
-            r.append(len(z))
-            r.append(len(linear_xfit))
-            r.append(len(second_xfit))
-            rn = min(r)
-            for i in range(rn):
-                linear_check = linear_check + abs(z[i] - linaer_yfit[i])
-                second_check = second_check + abs(z[i] - second_yfit[i])
-
-            margin = 100
-            print("linear_check: " + str(abs(linear_check)))
-            print("second_check + margin: " + str(abs(second_check) + margin))
-            if abs(linear_check) < ( abs(second_check) + margin):
-                humidityRate[k].xLine = linear_xfit
-                humidityRate[k].yLine = linaer_yfit
-                humidityRate[k].yPrime = linaear_yprimefit
-                fit.append("linear")
-            else:
-                humidityRate[k].xLine = second_xfit
-                humidityRate[k].yLine = second_yfit
-                humidityRate[k].yPrime = second_yprimefit
-                fit.append("2nd order polynomial")
-
-            k += 1
+        # Display the data and return
+        pr.presentFixedTempAndHumData(processedData, fitData, labels)
 
     # Make some plots
     if type == "atmo":
