@@ -78,7 +78,6 @@ def main(argv):
     
     # Create a list of streamData objects
     data = []
-    colors = ["b","g","r","c","m","y","k","#ccccff","#ff33cc","#336699","#888844","#cc6600","#000066"]
 
     # Populate the list of streamData objects
     maxLines = 5000000
@@ -115,7 +114,7 @@ def main(argv):
         sys.exit(2)
 
     # Process data if we are doing a certain type of processing
-    if process == "humidity_testing" and type == "atmo":
+    if process == "humidity_testing":
         # Loop through the data, clip it, and fit it
         processedData = []
         fitData = []
@@ -125,220 +124,109 @@ def main(argv):
             processedData.append(clip)
             fitData.append(hum)
 
-        # Display the data and return
-        pr.presentFixedTempAndHumData(processedData, fitData, labels)
+        if type == "atmo":
+            # Display the data and return
+            pr.presentFixedTempAndHumData(processedData, fitData, labels)
+        elif type == "rh_comp":
+            # Display the data and return
+            pr.presentRHComparison(processedData, fitData, labels)
+    else:
+        if type == "atmo":
+            # Present the data
+            pr.presentRawAtmoData(data, labels)
+        elif type == "mag":
+            # Present the data
+            pr.presentRawMagData(data, labels)
+        elif type == "rh_comp":
+            timeList = []
+            tempList = []
+            pressList = []
+            humList = []
+            pnames = []
+            avgRateChangeHum = []
+            comparison = []
+            j = 0
+            for i in data:
+                timeList.append(i.time)
+                tempList.append(i.x)
+                pressList.append(i.y)
+                humList.append(i.z)
+                if len(labels) > 0:
+                    pnames.append(labels[j])
+                else:
+                    pnames.append("Atmo " + str(j))
 
-    # Make some plots
-    if type == "atmo":
-        timeList = []
-        tempList = []
-        pressList = []
-        humList = []
-        pnames = []
-        avgRateChangeHum = []
-        j = 0
-        for i in data:
-            timeList.append(i.time)
-            tempList.append(i.x)
-            pressList.append(i.y)
-            humList.append(i.z)
-            if len(labels) > 0:
-                pnames.append(labels[j])
-            else:
-                pnames.append("Atmo " + str(j))
+                # Print a nice table
+                minTemp = min(tempList[j])
+                maxTemp = max(tempList[j])
+                avgTemp = mean(tempList[j])
+                minPress = min(pressList[j])
+                maxPress = max(pressList[j])
+                avgPress = mean(pressList[j])
+                minHum = min(humList[j])
+                maxHum = max(humList[j])
+                avgHum = mean(humList[j])
+                if process == "humidity_testing":
+                    minHumRate = round(min(humidityRate[j].yPrime), 7)
+                    maxHumRate = round(max(humidityRate[j].yPrime), 7)
+                    avgHumRate = round(mean(humidityRate[j].yPrime), 7)
+                
+                data = [["temperature degrees C", minTemp, maxTemp, avgTemp, "--"], 
+                ["pressure kPa", minPress, maxPress, avgPress, "--"], 
+                ["relative humidity", minHum, maxHum, avgHum, "--"]]
+                if process == "humidity_testing":
+                    data.append(["humidity rate", minHumRate, maxHumRate, avgHumRate, fit[j]])
+                    avgRateChangeHum.append(avgHumRate)
+                    comparison.append(labels[j] + " " + f'{avgHumRate:.20f}')
+                print (tabulate(data, headers=["metric", "min", "max", "avg", "fit"], tablefmt="pipe"))
+                print("\n")
 
-            # Print a nice table
-            minTemp = min(tempList[j])
-            maxTemp = max(tempList[j])
-            avgTemp = mean(tempList[j])
-            minPress = min(pressList[j])
-            maxPress = max(pressList[j])
-            avgPress = mean(pressList[j])
-            minHum = min(humList[j])
-            maxHum = max(humList[j])
-            avgHum = mean(humList[j])
-            if process == "humidity_testing":
-                minHumRate = min(humidityRate[j].yPrime)
-                maxHumRate = max(humidityRate[j].yPrime)
-                avgHumRate = mean(humidityRate[j].yPrime)
-            
-            data = [["temperature degrees C", minTemp, maxTemp, avgTemp, "--"], 
-            ["pressure kPa", minPress, maxPress, avgPress, "--"], 
-            ["relative humidity", minHum, maxHum, avgHum, "--"]]
-            if process == "humidity_testing":
-                data.append(["humidity rate", minHumRate, maxHumRate, avgHumRate, fit[j]])
-                avgRateChangeHum.append(avgHumRate)
-            print (tabulate(data, headers=["metric", "min", "max", "avg", "fit"], tablefmt="pipe"))
-            print("\n")
+                j += 1
 
-            j += 1
-        # Create a subplot for each sensor
-        try:
             # Create a figure with three subplots
-            numSubPlots = 3
+            numSubPlots = 1
             if process == "humidity_testing":
-                numSubPlots = 4
+                numSubPlots = 2
 
             fig, axs = plt.subplots(numSubPlots, 1)
-            # Name the figure
-            fig.suptitle("Atmospheric Data")
-            # Plot temperature in subplot 0
-            for i in range(len(tempList)):
-                axs[0].scatter(timeList[i], tempList[i], label=pnames[i], color=colors[i])
-            axs[0].set_title("Temperature (C)")
-            axs[0].set_xlabel("Time (s)")
-            axs[0].set_ylabel("°C")
-            axs[0].legend()
-            # Plot pressure in subplot 1
-            for i in range(len(pressList)):
-                axs[1].scatter(timeList[i], pressList[i], label=pnames[i], color=colors[i])
-            axs[1].set_title("Pressure (KPa)")
-            axs[1].set_xlabel("Time (s)")
-            axs[1].set_ylabel("KPa")
-            axs[1].legend()
             # Plot relative humidity in subplot 2
             for i in range(len(humList)):
-                axs[2].scatter(timeList[i], humList[i], label=pnames[i], color=colors[i])
+                axs[0].scatter(timeList[i], humList[i], label=pnames[i], color=colors[i])
                 if process == "humidity_testing":
-                    axs[2].plot(humidityRate[i].xLine, humidityRate[i].yLine, '--', label=(pnames[i] + " curve fit"), color=colors[i])
-            axs[2].set_title("Relative Humidity (%RH)")
-            axs[2].set_xlabel("Time (s)")
-            axs[2].set_ylabel("%RH")
-            axs[2].legend()
+                    axs[0].plot(humidityRate[i].xLine, humidityRate[i].yLine, '--', label=(pnames[i] + " curve fit"), color=colors[i])
+            axs[0].set_title("Relative Humidity (%RH)")
+            axs[0].set_xlabel("Time (s)")
+            axs[0].set_ylabel("%RH")
+            axs[0].legend()
             # Plot rate of change of relative humidity in subplot 3
 
-            if numSubPlots == 4:
+            if numSubPlots == 2:
                 for i in range(len(humList)):
-                    axs[3].plot(humidityRate[i].xLine, humidityRate[i].yPrime, label=pnames[i], color=colors[i])
+                    if fit[i] == "linear":
+                        axs[1].plot(humidityRate[i].xLine, humidityRate[i].yPrime, label=pnames[i], color=colors[i])
                     if fit[i] == "2nd order polynomial":
                         aR = linearPrime(humidityRate[i].xLine, avgRateChangeHum[i])
-                        axs[3].plot(humidityRate[i].xLine, aR, '--', label=(pnames[i] + " avg"), color=colors[i])
-                axs[3].set_title("%RH Rate of Change")
-                axs[3].set_xlabel("Time (s)")
-                axs[3].set_ylabel("Δ(%RH)")
-                axs[3].legend()
+                        axs[1].plot(humidityRate[i].xLine, aR, '--', label=(pnames[i] + " avg"), color=colors[i])
+                axs[1].set_title("%RH Rate of Change")
+                axs[1].set_xlabel("Time (s)")
+                axs[1].set_ylabel("Δ(%RH)")
+                axs[1].legend()
+
+            # Create a table of rankings
+            comparison.sort(key = helper_func)
+            compData = []
+            pp = 0
+            for i in comparison:
+                pp += 1
+                bp = i.split()
+                bp.append(str(pp))
+                compData.append(bp)
+            print (tabulate(compData, headers=["seal", "rate", "rank"], tablefmt="pipe"))
 
             plt.subplots_adjust(left=None, bottom=None, right=None, top=None, wspace=None, hspace=.35)
 
             # Show the plot
             plt.show()
-
-        except Exception as e: 
-            print(e)
-            print("Could not create plot")
-            sys.exit(2)
-    elif type == "mag":
-        timeList = []
-        xList = []
-        yList = []
-        zList = []
-        colors = ["b","g","r","c","m","y","k"]
-        for i in data:
-            timeList.append(i.time)
-            xList.append(i.x)
-            yList.append(i.y)
-            zList.append(i.z)
-        # Create a subplot for each sensor
-        j = 0
-        try:
-            plt.plot(timeList[j], xList[j], label="x", color=colors[0])
-            plt.plot(timeList[j], yList[j], label="y", color=colors[1])
-            plt.plot(timeList[j], zList[j], label="z", color=colors[2])
-            # Show the plot
-            plt.show()
-        except:
-            print("Could not create plot")
-            sys.exit(2)
-    elif type == "rh_comp":
-        timeList = []
-        tempList = []
-        pressList = []
-        humList = []
-        pnames = []
-        avgRateChangeHum = []
-        comparison = []
-        j = 0
-        for i in data:
-            timeList.append(i.time)
-            tempList.append(i.x)
-            pressList.append(i.y)
-            humList.append(i.z)
-            if len(labels) > 0:
-                pnames.append(labels[j])
-            else:
-                pnames.append("Atmo " + str(j))
-
-            # Print a nice table
-            minTemp = min(tempList[j])
-            maxTemp = max(tempList[j])
-            avgTemp = mean(tempList[j])
-            minPress = min(pressList[j])
-            maxPress = max(pressList[j])
-            avgPress = mean(pressList[j])
-            minHum = min(humList[j])
-            maxHum = max(humList[j])
-            avgHum = mean(humList[j])
-            if process == "humidity_testing":
-                minHumRate = round(min(humidityRate[j].yPrime), 7)
-                maxHumRate = round(max(humidityRate[j].yPrime), 7)
-                avgHumRate = round(mean(humidityRate[j].yPrime), 7)
-            
-            data = [["temperature degrees C", minTemp, maxTemp, avgTemp, "--"], 
-            ["pressure kPa", minPress, maxPress, avgPress, "--"], 
-            ["relative humidity", minHum, maxHum, avgHum, "--"]]
-            if process == "humidity_testing":
-                data.append(["humidity rate", minHumRate, maxHumRate, avgHumRate, fit[j]])
-                avgRateChangeHum.append(avgHumRate)
-                comparison.append(labels[j] + " " + f'{avgHumRate:.20f}')
-            print (tabulate(data, headers=["metric", "min", "max", "avg", "fit"], tablefmt="pipe"))
-            print("\n")
-
-            j += 1
-
-        # Create a figure with three subplots
-        numSubPlots = 1
-        if process == "humidity_testing":
-            numSubPlots = 2
-
-        fig, axs = plt.subplots(numSubPlots, 1)
-        # Plot relative humidity in subplot 2
-        for i in range(len(humList)):
-            axs[0].scatter(timeList[i], humList[i], label=pnames[i], color=colors[i])
-            if process == "humidity_testing":
-                axs[0].plot(humidityRate[i].xLine, humidityRate[i].yLine, '--', label=(pnames[i] + " curve fit"), color=colors[i])
-        axs[0].set_title("Relative Humidity (%RH)")
-        axs[0].set_xlabel("Time (s)")
-        axs[0].set_ylabel("%RH")
-        axs[0].legend()
-        # Plot rate of change of relative humidity in subplot 3
-
-        if numSubPlots == 2:
-            for i in range(len(humList)):
-                if fit[i] == "linear":
-                    axs[1].plot(humidityRate[i].xLine, humidityRate[i].yPrime, label=pnames[i], color=colors[i])
-                if fit[i] == "2nd order polynomial":
-                    aR = linearPrime(humidityRate[i].xLine, avgRateChangeHum[i])
-                    axs[1].plot(humidityRate[i].xLine, aR, '--', label=(pnames[i] + " avg"), color=colors[i])
-            axs[1].set_title("%RH Rate of Change")
-            axs[1].set_xlabel("Time (s)")
-            axs[1].set_ylabel("Δ(%RH)")
-            axs[1].legend()
-
-        # Create a table of rankings
-        comparison.sort(key = helper_func)
-        compData = []
-        pp = 0
-        for i in comparison:
-            pp += 1
-            bp = i.split()
-            bp.append(str(pp))
-            compData.append(bp)
-        print (tabulate(compData, headers=["seal", "rate", "rank"], tablefmt="pipe"))
-
-        plt.subplots_adjust(left=None, bottom=None, right=None, top=None, wspace=None, hspace=.35)
-
-        # Show the plot
-        plt.show()
 
 if __name__ == "__main__":
     main(sys.argv[1:])

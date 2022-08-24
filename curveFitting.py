@@ -1,7 +1,6 @@
 import numpy as np
 from scipy.optimize import curve_fit
 
-
 # Logarithmic function modeling the rise in relative humidity
 def logarithmic(x, a, b):
     return a + b * np.log(x)
@@ -10,7 +9,6 @@ def logarithmic(x, a, b):
 # Derivative of the logarithmic function
 def dxLogarithmic(x, b):
     return b / x
-
 
 # Find the x intercept of the logarithmic function
 def findLogarithmicXIntercept(step, a, b):
@@ -70,3 +68,4 @@ def logarithmicCurveFit(x, y):
 
     # Return the xRange, the fitted curve, the derivative curve, the constants, rms value, and fit type
     return xRange, logFit, logPrimeFit, a, b, r2, "Logarithmic"
+    
