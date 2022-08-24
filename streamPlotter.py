@@ -31,6 +31,7 @@ def printArgHelp():
     print("--file=<path to file>")
     print("--process=<humidity_testing - find the point in the splot where the temprature bottoms out and start the run from that point.>")
     print("--labels=<labels for various plots if you don't want the default label>")
+    print("--outfile=<path to output file>")
 
 def helper_func(ele):
         name, val = ele.split()
@@ -43,7 +44,7 @@ def main(argv):
         sys.exit(2)
 
     try:
-        opts, _ = getopt.getopt(argv, "-h",["type=","file=","process=", "labels="])
+        opts, _ = getopt.getopt(argv, "-h",["type=","file=","process=","labels=","outfile="])
     except getopt.GetoptError:
         printArgHelp()
         sys.exit(2)
@@ -52,6 +53,7 @@ def main(argv):
     type = "mag"
     process = "none"
     labels = []
+    outFile = ""
     for opt, arg in opts:
         if opt == '-h':
             printArgHelp()
@@ -70,6 +72,8 @@ def main(argv):
             f = arg.split(",")
             for i in f:
                 labels.append(i)
+        elif opt == "--outfile":
+            outFile = arg
 
     # Screen the types
     if type != "mag" and type != "atmo" and type != "rh_comp":
@@ -130,6 +134,26 @@ def main(argv):
         elif type == "rh_comp":
             # Display the data and return
             pr.presentRHComparison(processedData, fitData, labels)
+    elif process == "averaging":
+        # Process and average the data, the averaged set will be appended to the data list
+        processedData = ht.averageDataSets(data)
+
+        # Loop through the data, clip it, and fit it
+        fitData = []
+        for i in processedData:
+            # Clip and fit the data
+            _, hum = ht.fixedTempAndHumidityProcess(i)
+            fitData.append(hum)
+
+        
+        l = len(processedData)
+        # Write the averaged dataset to the file
+        f = open(outFile, "w")
+        for i in range(len(processedData[l-1].time)):
+            f.write(str(processedData[l-1].time[i]) + "," + str(processedData[l-1].x[i]) + "," + str(processedData[l-1].y[i]) + "," + str(processedData[l-1].z[i]) + "\n")
+        f.close()
+
+        pr.presentFixedTempAndHumData(processedData, fitData, labels)
     else:
         if type == "atmo":
             # Present the data

@@ -118,3 +118,49 @@ def fixedTempAndHumidityProcess(series):
     #    fit = poly2Fit
 
     return clippedSeries, logFit
+
+# Top level function for clipping humidity data from the fixed temperature and humidity chamber and averaging several data sets
+def averageDataSets(dataSet):
+    print("Averaging data sets..")
+
+    # Clip the data so we only examine the stable temperature and humidity period
+    processedData = []
+    for i in dataSet:
+        lowIndex = findStableLowTemp(i.time, i.x)
+        clippedSeries = sd.streamData()
+        clippedSeries.time = i.time[lowIndex:]
+        clippedSeries.x = i.x[lowIndex:]
+        clippedSeries.y = i.y[lowIndex:]
+        clippedSeries.z = i.z[lowIndex:]
+        processedData.append(clippedSeries)
+
+    # Find the shortest of the data sets and the number of datasets
+    numSets = len(processedData)
+    minLength = 0
+    for i in processedData:
+        if minLength == 0 or len(i.time) < minLength:
+            minLength = len(i.time)
+
+    # Average the data sets
+    cd = sd.streamData()
+    for i in range(minLength):
+        t = 0.0
+        x = 0.0
+        y = 0.0
+        z = 0.0
+        for j in range(numSets):
+            t += processedData[j].time[i]
+            x += processedData[j].x[i]
+            y += processedData[j].y[i]
+            z += processedData[j].z[i]
+        t /= numSets
+        x /= numSets
+        y /= numSets
+        z /= numSets
+        cd.setRecord(t, x, y, z)
+    
+    # Return the averaged data set
+    processedData.append(cd)
+
+    return processedData
+    

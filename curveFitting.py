@@ -21,7 +21,7 @@ def findLogarithmicXIntercept(step, a, b):
 
 
 # Find the y ending point so we can get the x - range
-def findLogarithmicYEnd(step, a, b, yEnd, xMax=250000.0):
+def findLogarithmicYEnd(step, a, b, yEnd, xMax=25000.0):
     x = step
     y = logarithmic(x, a, b)
     while y < yEnd and x < xMax:
