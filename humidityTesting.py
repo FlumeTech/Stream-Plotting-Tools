@@ -9,8 +9,9 @@ class humidityFit:
     fitPrime = []
     aCoeff = 0.0
     bCoeff = 0.0
+    cCoeff = 0.0
     rmse = 0.0
-    fitType = "logarithmic"
+    fitType = ""
 
     def __init__(self):
         self.time = []
@@ -18,17 +19,19 @@ class humidityFit:
         self.fitPrime = []
         self.aCoeff = 0.0
         self.bCoeff = 0.0
+        self.cCoeff = 0.0
         self.rmse = 0.0
-        self.fitType = "logarithmic"
+        self.fitType = ""
 
-    def setRecord(self, time, fit, fitP, a, b, rmse):
+    def setRecord(self, time, fit, fitP, a, b, c, rmse, fitType):
         self.time.append(time)
         self.fit.append(fit)
         self.fitPrime.append(fitP)
         self.aCoeff = a
         self.bCoeff = b
+        self.cCoeff = c
         self.rmse = rmse
-        self.fitType = "logarithmic"
+        self.fitType = fitType
 
 
 # Storage class for atmospheric data ranges
@@ -100,9 +103,18 @@ def fixedTempAndHumidityProcess(series):
     clippedSeries.y = series.y[lowIndex:]
     clippedSeries.z = series.z[lowIndex:]
 
-    # Create the humidity curve fitting data
-    humidityFitData = humidityFit()
-    humidityFitData.time, humidityFitData.fit, humidityFitData.fitPrime, humidityFitData.aCoeff, humidityFitData.bCoeff, humidityFitData.rmse, humidityFitData.fitType = cf.logarithmicCurveFit(
+    # Create the humidity curve fitting data, for now force the logarithmic fit
+    logFit = humidityFit()
+    logFit.time, logFit.fit, logFit.fitPrime, logFit.aCoeff, logFit.bCoeff, logFit.rmse, logFit.fitType = cf.logarithmicCurveFit(
         clippedSeries.time, clippedSeries.z)
+    #poly2Fit = humidityFit()
+    #poly2Fit.time, poly2Fit.fit, poly2Fit.fitPrime, poly2Fit.aCoeff, poly2Fit.bCoeff, poly2Fit.cCoeff, poly2Fit.rmse, poly2Fit.fitType = cf.polynomial2ndOrderCurveFit(
+    #    clippedSeries.time, clippedSeries.z)
 
-    return clippedSeries, humidityFitData
+    #fit = humidityFit()
+    #if logFit.rmse > poly2Fit.rmse:
+    #    fit = logFit
+    #else:
+    #    fit = poly2Fit
+
+    return clippedSeries, logFit

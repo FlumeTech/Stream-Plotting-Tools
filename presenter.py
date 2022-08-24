@@ -125,6 +125,11 @@ def presentRawMagData(magData):
     # Show the plot
     plt.show()
 
+# Helper function for ranking rh data
+def helper_func(ele):
+        name, val = ele.split()
+        return float(val)
+
 def presentRHComparison(atmoList, fitList, labels ):
     # Print the min and max data to a table
     for i in atmoList:
@@ -133,8 +138,11 @@ def presentRHComparison(atmoList, fitList, labels ):
     
     colors = ["b","g","r","c","m","y","k","#ccccff","#ff33cc","#336699","#888844","#cc6600","#000066"]
 
+    # Create a list for comparing the relative humidity rates
+    rhComparison = []
+
     # Create a figure with one subplots
-    fig, axs = plt.subplots(3, 1)
+    fig, axs = plt.subplots(2, 1)
 
     # Name the figure
     fig.suptitle("Relative Humidity Comparison")
@@ -143,9 +151,33 @@ def presentRHComparison(atmoList, fitList, labels ):
     for i in range(len(atmoList)):
         axs[0].scatter(atmoList[i].time, atmoList[i].z, label=labels[i], color=colors[i])
         axs[0].plot(fitList[i].time, fitList[i].fit, '--', label=(labels[i] + "fit"), color=colors[i])
+        rhComparison.append(labels[i] + " " + str(fitList[i].bCoeff))
     axs[0].set_title("Relative Humidity (%RH)")
     axs[0].set_xlabel("Time (s)")
     axs[0].set_ylabel("%RH")
     axs[0].legend()
 
-    # TODO
+    # Plot the slope in subplot 1
+    for i in range(len(fitList)):
+        axs[1].plot(fitList[i].time, fitList[i].fitPrime, label=labels[i], color=colors[i])
+    axs[1].set_title("Slope")
+    axs[1].set_xlabel("Time (s)")
+    axs[1].set_ylabel("Slope")
+    axs[1].legend()
+
+    # Create a table of rankings, sort from lowest to highest
+    rhComparison.sort(key = helper_func)
+    compData = []
+    pp = 0
+    for i in rhComparison:
+        pp += 1
+        bp = i.split()
+        bp.append(str(pp))
+        compData.append(bp)
+    print (tabulate(compData, headers=["seal", "B Coeff", "rank"], tablefmt="pipe"))
+
+    # Adjust the sublot spacing
+    plt.subplots_adjust(left=None, bottom=None, right=None, top=None, wspace=None, hspace=.35)
+
+    # Show the plot
+    plt.show()
