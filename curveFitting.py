@@ -21,7 +21,7 @@ def findLogarithmicXIntercept(step, a, b):
 
 
 # Find the y ending point so we can get the x - range
-def findLogarithmicYEnd(step, a, b, yEnd, xMax=25000.0):
+def findLogarithmicYEnd(step, a, b, yEnd, xMax=250000.0):
     x = step
     y = logarithmic(x, a, b)
     while y < yEnd and x < xMax:
@@ -64,7 +64,7 @@ def logarithmicCurveFit(x, y):
     print("Logarithmic Fit Results:")
     print("a = ", a)
     print("b = ", b)
-    print("Root Mean Square Error = ", r2)
+    print("R^2 = ", r2)
     print("X intercept = ", xStart)
     print("Upper boundary point = ", xEnd)
 
@@ -134,7 +134,7 @@ def polynomial2ndOrderCurveFit(x, y):
     print("a = ", a)
     print("b = ", b)
     print("c = ", c)
-    print("Root Mean Square Error = ", r2)
+    print("R^2 = ", r2)
     print("X intercept = ", xStart)
     print("Upper boundary point = ", xEnd)
 

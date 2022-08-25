@@ -27,7 +27,7 @@ class humCurveFitting:
 
 def printArgHelp():
     print("streamPlotter.py USAGE:")
-    print("--type=<mag, atmo, rh_comp>")
+    print("--type=<mag, atmo, rh_comp, rh_rpt>")
     print("--file=<path to file>")
     print("--process=<humidity_testing - find the point in the splot where the temprature bottoms out and start the run from that point.>")
     print("--labels=<labels for various plots if you don't want the default label>")
@@ -76,7 +76,7 @@ def main(argv):
             outFile = arg
 
     # Screen the types
-    if type != "mag" and type != "atmo" and type != "rh_comp":
+    if type != "mag" and type != "atmo" and type != "rh_comp" and type != "rh_rpt":
         print("Invalid type: " + type)
         sys.exit(2)
     
@@ -134,6 +134,19 @@ def main(argv):
         elif type == "rh_comp":
             # Display the data and return
             pr.presentRHComparison(processedData, fitData, labels)
+        elif type == "rh_rpt":
+            # Special case for the humidity report
+            # Average the data 
+            processedData = ht.averageDataSets(data)
+
+            # Loop through the data, clip it, and fit it
+            fitData = []
+            for i in processedData:
+                # Clip and fit the data
+                _, hum = ht.fixedTempAndHumidityProcess(i)
+                fitData.append(hum)
+
+            pr.presentRptData(processedData, fitData, labels)
     elif process == "averaging":
         # Process and average the data, the averaged set will be appended to the data list
         processedData = ht.averageDataSets(data)
@@ -150,7 +163,7 @@ def main(argv):
         # Write the averaged dataset to the file
         f = open(outFile, "w")
         for i in range(len(processedData[l-1].time)):
-            f.write(str(processedData[l-1].time[i]) + "," + str(processedData[l-1].x[i]) + "," + str(processedData[l-1].y[i]) + "," + str(processedData[l-1].z[i]) + "\n")
+            f.write(str(processedData[l-1].time[i] * 1000.0) + "," + str(processedData[l-1].x[i]) + "," + str(processedData[l-1].y[i]) + "," + str(processedData[l-1].z[i]) + "\n")
         f.close()
 
         pr.presentFixedTempAndHumData(processedData, fitData, labels)

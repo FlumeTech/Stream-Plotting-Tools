@@ -20,7 +20,7 @@ def printAtmoData(atmo, label):
 # Print the humidity curve fit data in a table
 def printFitData(fit, label):
     # Print the humidity curve fit data in a table
-    print(tabulate([["Fit type", fit.fitType],["RMSE", fit.rmse],["A", fit.aCoeff],["B", fit.bCoeff]],
+    print(tabulate([["Fit type", fit.fitType],["R^2", fit.rmse],["A", fit.aCoeff],["B", fit.bCoeff]],
     headers=[label + " fit", "Value"], tablefmt="pipe"))
     print("\n")
 
@@ -63,6 +63,56 @@ def presentFixedTempAndHumData(atmoList, fitList, labels ):
     axs[2].set_xlabel("Time (s)")
     axs[2].set_ylabel("%RH")
     axs[2].legend()
+
+    # Adjust the sublot spacing
+    plt.subplots_adjust(left=None, bottom=None, right=None, top=None, wspace=None, hspace=.35)
+
+    # Show the plot
+    plt.show()
+
+# Present raw atmospheric data in report format
+def presentRptData(atmoList, fitList, labels):
+    # Build the custom atmo and fit table
+    rhStart = []
+    rhEnd = []
+    B = []
+    R2 = []
+    for i in range(len(atmoList)):
+        rhStart.append(min(atmoList[i].z))
+        rhEnd.append(max(atmoList[i].z))
+        B.append(fitList[i].bCoeff)
+        R2.append(fitList[i].rmse)
+    
+    tableData = []
+    for i in range(len(atmoList)):
+        row = []
+        row.append(labels[i])
+        row.append(rhStart[i])
+        row.append(rhEnd[i])
+        row.append(B[i])
+        row.append(R2[i])
+        tableData.append(row)
+    
+    headers = ["Sensor", "RH Start", "RH End", "B", "R^2"]
+    print(tabulate(tableData, headers=headers, tablefmt="pipe"))
+    print("\n")
+
+    colors = ["b","g","r","c","m","y","k","#ccccff","#ff33cc","#336699","#888844","#cc6600","#000066"]
+
+    # Create a figure with one subplots
+    fig, axs = plt.subplots(1, 1)
+
+    # Name the figure
+    fig.suptitle("Relative Humidity Comparison")
+
+    # Plot relative humidity and the curve fit in subplot 0
+    for i in range(len(atmoList)):
+        axs.scatter(atmoList[i].time, atmoList[i].z, label=labels[i], color=colors[i])
+        axs.plot(fitList[i].time, fitList[i].fit, '--', label=(labels[i] + " fit"), color=colors[i])
+    axs.set_title("Relative Humidity (%RH)")
+    axs.set_xlabel("Time (s)")
+    axs.set_ylabel("%RH")
+    axs.legend()
 
     # Adjust the sublot spacing
     plt.subplots_adjust(left=None, bottom=None, right=None, top=None, wspace=None, hspace=.35)
@@ -127,6 +177,7 @@ def presentRawMagData(magData):
 
 # Helper function for ranking rh data
 def helper_func(ele):
+        print(ele)
         _, val, _ = ele.split()
         return float(val)
 
@@ -142,28 +193,28 @@ def presentRHComparison(atmoList, fitList, labels ):
     rhComparison = []
 
     # Create a figure with one subplots
-    fig, axs = plt.subplots(2, 1)
+    fig, axs = plt.subplots(1, 1)
 
     # Name the figure
     fig.suptitle("Relative Humidity Comparison")
 
     # Plot relative humidity and the curve fit in subplot 0
     for i in range(len(atmoList)):
-        axs[0].scatter(atmoList[i].time, atmoList[i].z, label=labels[i], color=colors[i])
-        axs[0].plot(fitList[i].time, fitList[i].fit, '--', label=(labels[i] + " fit"), color=colors[i])
+        axs.scatter(atmoList[i].time, atmoList[i].z, label=labels[i], color=colors[i])
+        axs.plot(fitList[i].time, fitList[i].fit, '--', label=(labels[i] + " fit"), color=colors[i])
         rhComparison.append(labels[i] + " " + str(fitList[i].bCoeff) + " " + str(fitList[i].rmse))
-    axs[0].set_title("Relative Humidity (%RH)")
-    axs[0].set_xlabel("Time (s)")
-    axs[0].set_ylabel("%RH")
-    axs[0].legend()
+    axs.set_title("Relative Humidity (%RH)")
+    axs.set_xlabel("Time (s)")
+    axs.set_ylabel("%RH")
+    axs.legend()
 
     # Plot the slope in subplot 1
-    for i in range(len(fitList)):
-        axs[1].plot(fitList[i].time, fitList[i].fitPrime, label=labels[i] + " slope", color=colors[i])
-    axs[1].set_title("Slope")
-    axs[1].set_xlabel("Time (s)")
-    axs[1].set_ylabel("Slope")
-    axs[1].legend()
+    #for i in range(len(fitList)):
+    #    axs[1].plot(fitList[i].time, fitList[i].fitPrime, label=labels[i] + " slope", color=colors[i])
+    #axs[1].set_title("Slope")
+    #axs[1].set_xlabel("Time (s)")
+    #axs[1].set_ylabel("Slope")
+    #axs[1].legend()
 
     # Create a table of rankings, sort from lowest to highest
     rhComparison.sort(key = helper_func)
